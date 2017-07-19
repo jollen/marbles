@@ -29,11 +29,11 @@ module.exports = function (logger) {
 	*/
 	deploy_cc.install_chaincode = function (obj, options, cb) {
 		logger.debug('[fcw] Installing Chaincode');
-		var chain = obj.chain;
+		var channel = obj.channel;
 
 		try {
 			for (var i in options.peer_urls) {
-				chain.addPeer(new Peer(options.peer_urls[i], {
+				channel.addPeer(new Peer(options.peer_urls[i], {
 					pem: options.peer_tls_opts.pem,
 					'ssl-target-name-override': options.peer_tls_opts.common_name	//can be null if cert matches hostname
 				}));
@@ -52,12 +52,12 @@ module.exports = function (logger) {
 			chaincodePath: options.path_2_chaincode,		//rel path from /server/libs/src/ to chaincode folder ex: './marbles_chaincode'
 			chaincodeId: options.chaincode_id,
 			chaincodeVersion: options.chaincode_version,
-			txId: chain.buildTransactionID(nonce, obj.submitter),
+			txId: channel.txId,
 			nonce: nonce
 		};
 		logger.debug('[fcw] Sending install req', request);
 
-		chain.sendInstallProposal(request
+		channel.sendInstantiateProposal(request
 			//nothing
 		).then(
 			function (results) {
@@ -99,7 +99,7 @@ module.exports = function (logger) {
 	*/
 	deploy_cc.instantiate_chaincode = function (obj, options, cb) {
 		logger.debug('[fcw] Instantiating Chaincode', options);
-		var chain = obj.chain;
+		var channel = obj.channel;
 		//var eventhub;
 
 		try {
@@ -128,7 +128,7 @@ module.exports = function (logger) {
 			chaincodeVersion: options.chaincode_version,
 			fcn: 'init',
 			args: options.cc_args,
-			txId: chain.buildTransactionID(nonce, obj.submitter),
+			txId: channel.txId,
 			nonce: nonce,
 		};
 		logger.debug('[fcw] Sending instantiate req', request);
@@ -138,15 +138,15 @@ module.exports = function (logger) {
 		//eventhub.setPeerAddr(options.event_url);
 		//eventhub.connect();
 
-		chain.initialize().then(() => {
-			chain.sendInstantiateProposal(request
+		channel.initialize().then(() => {
+			channel.sendInstantiateProposal(request
 				//nothing
 			).then(
 				function (results) {
 
 					//check response
 					var request = common.check_proposal_res(results, options.endorsed_hook);
-					return chain.sendTransaction(request);
+					return channel.sendTransaction(request);
 				}
 				).then(
 				function (response) {

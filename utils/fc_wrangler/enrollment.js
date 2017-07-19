@@ -43,11 +43,12 @@ module.exports = function (logger) {
 	*/
 
 	enrollment.enroll = function (options, cb) {
-		var chain = {};
+		var channel = {};
 		var client = null;
 		try {
 			client = new HFC();
-			chain = client.newChain(options.channel_id);
+			channel = client.newChannel(options.channel_id);
+			channel.txId = client.newTransactionID();
 		}
 		catch (e) {
 			//it might error about 1 chain per network, but that's not a problem just continue
@@ -79,14 +80,14 @@ module.exports = function (logger) {
 			return getSubmitter(client, options);							//do most of the work here
 		}).then(function (submitter) {
 
-			chain.addOrderer(new Orderer(options.orderer_url, {
+			channel.addOrderer(new Orderer(options.orderer_url, {
 				pem: options.orderer_tls_opts.pem,
 				'ssl-target-name-override': options.orderer_tls_opts.common_name			//can be null if cert matches hostname
 			}));
 
 			try {
 				for (var i in options.peer_urls) {
-					chain.addPeer(new Peer(options.peer_urls[i], {
+					channel.addPeer(new Peer(options.peer_urls[i], {
 						pem: options.peer_tls_opts.pem,
 						'ssl-target-name-override': options.peer_tls_opts.common_name	//can be null if cert matches hostname
 					}));
@@ -97,7 +98,7 @@ module.exports = function (logger) {
 				//might error if peer already exists, but we don't care
 			}
 			try {
-				chain.setPrimaryPeer(new Peer(options.peer_urls[0], {
+				channel.setPrimaryPeer(new Peer(options.peer_urls[0], {
 					pem: options.peer_tls_opts.pem,
 					'ssl-target-name-override': options.peer_tls_opts.common_name		//can be null if cert matches hostname
 				}));
@@ -109,7 +110,7 @@ module.exports = function (logger) {
 
 			// --- Success --- //
 			logger.debug('[fcw] Successfully got enrollment ' + options.uuid);
-			if (cb) cb(null, { chain: chain, submitter: submitter });
+			if (cb) cb(null, { channel: channel, submitter: submitter });
 			return;
 
 		}).catch(
@@ -128,7 +129,7 @@ module.exports = function (logger) {
 	// Get Submitter - ripped this function off from fabric-client
 	function getSubmitter(client, options) {
 		var member;
-		return client.getUserContext(options.enroll_id).then((user) => {
+		return client.getUserContext(options.enroll_id, true).then((user) => {
 			if (user && user.isEnrolled()) {
 				logger.info('[fcw] Successfully loaded member from persistence');
 				return user;
